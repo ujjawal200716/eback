@@ -39,13 +39,13 @@ let model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
 // Helper function to rotate keys
 function rotateAPIKey() {
-    if (GEMINI_API_KEYS.length <= 1) return false; // No other keys to try
+    if (ALL_KEYS.length <= 1) return false; // No other keys to try
 
-    currentKeyIndex = (currentKeyIndex + 1) % GEMINI_API_KEYS.length;
+    currentKeyIndex = (currentKeyIndex + 1) % ALL_KEYS.length;
     console.warn(`⚠️ API Error. Switching to Key Index: ${currentKeyIndex}`);
     
     // Re-initialize model with new key
-    genAI = new GoogleGenerativeAI(GEMINI_API_KEYS[currentKeyIndex]);
+    genAI = new GoogleGenerativeAI(ALL_KEYS[currentKeyIndex]);
     model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     return true;
 }
