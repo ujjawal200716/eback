@@ -12,7 +12,7 @@ import './App.css';
 import logo from './logo.png';
 
 // ==========================================
-// 1. CONFIGURATION & API KEYS
+// 1. CONFIGURATION & API KEYS (UPDATED)
 // ==========================================
 
 // ✅ PRODUCTION BACKEND URL
@@ -22,21 +22,41 @@ const supabaseUrl = 'https://zlzdtzkprmgbixxggkrz.supabase.co';
 const supabaseKey = 'sb_publishable_tK1j5PaFwiZW5JyQkygNzw_nYxgwzqW';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// ⚠️ YOUR API KEY (Ensure this is set in your Vercel/Netlify Environment Variables)
-const GEMINI_API_KEY = "AIzaSyCjt9ObInp1U8lyIY4p-2_qP_-s4RvgXjk"; 
+// ⚠️ MULTI-API KEY SYSTEM
+// Add as many keys as you want here. The system will rotate through them if one fails.
+const GEMINI_API_KEYS = [
+    VITE_GEMINI_API_KEY, // Primary Key
+    VITE_GEMINI_API_KEY1,
+  VITE_GEMINI_API_KEY2,
+  VITE_GEMINI_API_KEY3,
+  VITE_GEMINI_API_KEY4
+];
 
-// Initialize Gemini
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+let currentKeyIndex = 0;
 
-// Valid options: 'gemini-1.5-flash', 'gemini-2.0-flash-exp'
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); 
+// Initialize Gemini with the first key
+let genAI = new GoogleGenerativeAI(GEMINI_API_KEYS[currentKeyIndex]);
+let model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); 
+
+// Helper function to rotate keys
+function rotateAPIKey() {
+    if (GEMINI_API_KEYS.length <= 1) return false; // No other keys to try
+
+    currentKeyIndex = (currentKeyIndex + 1) % GEMINI_API_KEYS.length;
+    console.warn(`⚠️ API Error. Switching to Key Index: ${currentKeyIndex}`);
+    
+    // Re-initialize model with new key
+    genAI = new GoogleGenerativeAI(GEMINI_API_KEYS[currentKeyIndex]);
+    model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    return true;
+}
 
 // PDF Worker Setup
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 
 // ==========================================
-// 2. ROBUST AI SERVICE LAYER
+// 2. ROBUST AI SERVICE LAYER (UPDATED)
 // ==========================================
 
 const SAFETY_LINE = "\n\nIMPORTANT: Do not invent facts. If information is missing, explicitly state what is missing.";
@@ -45,14 +65,20 @@ const PROMPTS = {
   // PROMPT 1: Smart Notes with Diagram Triggers
   smartNotes: (text, pageCount) => `
     You are an expert educator. Transform this PDF content (approx ${pageCount} pages) into "Smart Notes".
-    
+     
     REQUIREMENTS:
     - Style: "Explain Like I'm 5" (ELI5) but detailed.
     - Structure: Use clear Markdown headings (##), subheadings (###), and bullet points.
-    - **Visuals**: Assess if the user would understand the response better with diagrams. If a complex topic (like a biological system, machine part, or physics cycle) is discussed, insert a diagram tag like **** or ****. Be economical but strategic. Place the tag on its own line immediately after the concept is introduced.
+    - **Visuals**: Assess if the user would understand the response better with diagrams. If a complex topic (like a biological system, machine part, or physics cycle) is discussed, insert a diagram tag like 
+
+[Image of the human digestive system]
+ or 
+
+[Image of hydrogen fuel cell]
+. Be economical but strategic. Place the tag on its own line immediately after the concept is introduced.
     - Content: Include Definitions, Key Concepts, and Real-World Analogies.
     - Length: Comprehensive (approx 1000-2000 words).
-    
+     
     CONTENT:
     ${text}
     ${SAFETY_LINE}
@@ -61,7 +87,7 @@ const PROMPTS = {
   // PROMPT 2: Strict JSON MCQ Generation
   mcqGeneration: (text) => `
     Generate exactly 5 Multiple Choice Questions based on this text.
-    
+     
     OUTPUT FORMAT:
     Return ONLY a raw JSON array. Do not wrap in markdown code blocks.
     [
@@ -80,10 +106,10 @@ const PROMPTS = {
   // PROMPT 3: ATS Career Report
   careerReport: (resumeText, role) => `
     You are an ATS Resume Expert analyzing a resume for the role of: ${role}.
-    
+     
     OUTPUT FORMAT:
     Return raw HTML (no markdown, no \`\`\` tags). Use <h3>, <ul>, <li>, <strong>, <p>.
-    
+     
     SECTIONS:
     1. <h3>Match Score</h3>: Give a score out of 100.
     2. <h3>Executive Summary</h3>: 2-3 sentences.
@@ -97,24 +123,40 @@ const PROMPTS = {
 
   // PROMPT 4: Chat Persona
   chatSystem: `You are EduProAI, a helpful tutor. 
-  - If the user asks for a diagram, or if a visual would help explain a complex concept (like anatomy, engineering schematics, or geography), use the format **** in your response.
+  - If the user asks for a diagram, or if a visual would help explain a complex concept (like anatomy, engineering schematics, or geography), use the format 
+
+[Image of X]
+ in your response.
   - Explain concepts clearly and concisely.`
 };
 
-// --- TIMEOUT HANDLER ---
+// --- TIMEOUT HANDLER WITH RETRY LOGIC ---
 async function generateWithTimeout(prompt, timeoutMs = 60000) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  
-    try {
-        const result = await model.generateContent(prompt);
-        clearTimeout(timeout);
-        return { ok: true, text: result.response.text() };
-    } catch (error) {
-        clearTimeout(timeout);
-        let errorMsg = error.message;
-        if (error.name === 'AbortError') errorMsg = "Request timed out (60s limit).";
-        return { ok: false, error: errorMsg };
+    // Retry loop: Tries as many times as there are keys
+    for (let attempt = 0; attempt < GEMINI_API_KEYS.length; attempt++) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      
+        try {
+            const result = await model.generateContent(prompt);
+            clearTimeout(timeout);
+            return { ok: true, text: result.response.text() };
+        } catch (error) {
+            clearTimeout(timeout);
+            
+            // Check if we should rotate and retry
+            const isLastAttempt = attempt === GEMINI_API_KEYS.length - 1;
+            
+            if (!isLastAttempt) {
+                rotateAPIKey(); // Switch key and loop again
+                continue;
+            }
+
+            // Final Error Handling
+            let errorMsg = error.message;
+            if (error.name === 'AbortError') errorMsg = "Request timed out (60s limit).";
+            return { ok: false, error: errorMsg };
+        }
     }
 }
 
@@ -153,38 +195,49 @@ async function fileToGenerativePart(file) {
     };
 }
 
-// --- FIXED CHAT FUNCTION ---
+// --- FIXED CHAT FUNCTION WITH RETRY ---
 async function generateChatAnswer(history, userInput, imagePart = null) {
-  try {
-    if (imagePart) {
-        const result = await model.generateContent([userInput, imagePart]);
-        return { ok: true, text: result.response.text() };
-    } 
-    
-    let geminiHistory = history
-        .filter(h => h.role !== 'system')
-        .map(h => ({
-            role: h.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: h.content }] 
-        }));
+  // Retry loop for Chat
+  for (let attempt = 0; attempt < GEMINI_API_KEYS.length; attempt++) {
+      try {
+        if (imagePart) {
+            const result = await model.generateContent([userInput, imagePart]);
+            return { ok: true, text: result.response.text() };
+        } 
+        
+        let geminiHistory = history
+            .filter(h => h.role !== 'system')
+            .map(h => ({
+                role: h.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text: h.content }] 
+            }));
 
-    if (geminiHistory.length > 0 && geminiHistory[0].role === 'model') {
-        geminiHistory.shift();
-    }
-
-    const chat = model.startChat({
-        history: geminiHistory,
-        systemInstruction: {
-            role: 'system',
-            parts: [{ text: PROMPTS.chatSystem }]
+        if (geminiHistory.length > 0 && geminiHistory[0].role === 'model') {
+            geminiHistory.shift();
         }
-    });
 
-    const result = await chat.sendMessage(userInput);
-    return { ok: true, text: result.response.text() };
-  } catch (e) { 
-      console.error("Gemini Chat Error:", e);
-      return { ok: false, error: e.message }; 
+        const chat = model.startChat({
+            history: geminiHistory,
+            systemInstruction: {
+                role: 'system',
+                parts: [{ text: PROMPTS.chatSystem }]
+            }
+        });
+
+        const result = await chat.sendMessage(userInput);
+        return { ok: true, text: result.response.text() };
+
+      } catch (e) { 
+          const isLastAttempt = attempt === GEMINI_API_KEYS.length - 1;
+          
+          if (!isLastAttempt) {
+             rotateAPIKey(); // Switch key
+             continue; // Retry logic
+          }
+          
+          console.error("Gemini Chat Error:", e);
+          return { ok: false, error: e.message }; 
+      }
   }
 }
 
@@ -390,7 +443,7 @@ function HomePage({ onNavigate }) {
 
   const faqs = [
     { q: "Is EduProAI free?", a: "Yes! The core features are open for students." },
-    { q: "Can it generate Diagrams?", a: "Yes, the AI will suggest diagram placeholders for complex topics." },
+    { q: "Can it generate Diagrams?", a: "No, the AI will suggest diagram placeholders for complex topics." },
     { q: "Is my data saved?", a: "Files are processed in memory and not permanently stored on our servers." },
   ];
 
@@ -1130,7 +1183,7 @@ function LoginPage({ onLoginSuccess }) {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({ 
           email, password,
           options: { data: { full_name: fullName } }
         });
