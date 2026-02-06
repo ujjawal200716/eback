@@ -132,7 +132,7 @@ const PROMPTS = {
 // --- TIMEOUT HANDLER WITH RETRY LOGIC ---
 async function generateWithTimeout(prompt, timeoutMs = 60000) {
     // Retry loop: Tries as many times as there are keys
-    for (let attempt = 0; attempt < GEMINI_API_KEYS.length; attempt++) {
+    for (let attempt = 0; attempt <  ALL_KEYS.length; attempt++) {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
       
@@ -144,7 +144,7 @@ async function generateWithTimeout(prompt, timeoutMs = 60000) {
             clearTimeout(timeout);
             
             // Check if we should rotate and retry
-            const isLastAttempt = attempt === GEMINI_API_KEYS.length - 1;
+            const isLastAttempt = attempt === ALL_KEYS.length - 1;
             
             if (!isLastAttempt) {
                 rotateAPIKey(); // Switch key and loop again
@@ -197,7 +197,7 @@ async function fileToGenerativePart(file) {
 // --- FIXED CHAT FUNCTION WITH RETRY ---
 async function generateChatAnswer(history, userInput, imagePart = null) {
   // Retry loop for Chat
-  for (let attempt = 0; attempt < GEMINI_API_KEYS.length; attempt++) {
+  for (let attempt = 0; attempt <  ALL_KEYS.length; attempt++) {
       try {
         if (imagePart) {
             const result = await model.generateContent([userInput, imagePart]);
@@ -227,7 +227,7 @@ async function generateChatAnswer(history, userInput, imagePart = null) {
         return { ok: true, text: result.response.text() };
 
       } catch (e) { 
-          const isLastAttempt = attempt === GEMINI_API_KEYS.length - 1;
+          const isLastAttempt = attempt ===  ALL_KEYS.length - 1;
           
           if (!isLastAttempt) {
              rotateAPIKey(); // Switch key
