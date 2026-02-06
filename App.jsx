@@ -16,14 +16,14 @@ import logo from './logo.png';
 // ==========================================
 
 // ✅ PRODUCTION BACKEND URL
-const API_BASE_URL = 'https://eduproback1.onrender.com';
+const API_BASE_URL ="https://eduproback1.onrender.com";
 
 const supabaseUrl = 'https://zlzdtzkprmgbixxggkrz.supabase.co';
 const supabaseKey = 'sb_publishable_tK1j5PaFwiZW5JyQkygNzw_nYxgwzqW';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // ⚠️ YOUR API KEY (Ensure this is set in your Vercel/Netlify Environment Variables)
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY; 
+const GEMINI_API_KEY = "AIzaSyCjt9ObInp1U8lyIY4p-2_qP_-s4RvgXjk"; 
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -49,17 +49,7 @@ const PROMPTS = {
     REQUIREMENTS:
     - Style: "Explain Like I'm 5" (ELI5) but detailed.
     - Structure: Use clear Markdown headings (##), subheadings (###), and bullet points.
-    - **Visuals**: Assess if the user would understand the response better with diagrams. If a complex topic (like a biological system, machine part, or physics cycle) is discussed, insert a diagram tag like **
-
-
-[Image of the human digestive system]
-
-** or **
-
-
-[Image of hydrogen fuel cell]
-
-**. Be economical but strategic. Place the tag on its own line immediately after the concept is introduced.
+    - **Visuals**: Assess if the user would understand the response better with diagrams. If a complex topic (like a biological system, machine part, or physics cycle) is discussed, insert a diagram tag like **** or ****. Be economical but strategic. Place the tag on its own line immediately after the concept is introduced.
     - Content: Include Definitions, Key Concepts, and Real-World Analogies.
     - Length: Comprehensive (approx 1000-2000 words).
     
@@ -107,12 +97,7 @@ const PROMPTS = {
 
   // PROMPT 4: Chat Persona
   chatSystem: `You are EduProAI, a helpful tutor. 
-  - If the user asks for a diagram, or if a visual would help explain a complex concept (like anatomy, engineering schematics, or geography), use the format **
-
-
-[Image of search query]
-
-** in your response.
+  - If the user asks for a diagram, or if a visual would help explain a complex concept (like anatomy, engineering schematics, or geography), use the format **** in your response.
   - Explain concepts clearly and concisely.`
 };
 
@@ -1300,6 +1285,9 @@ function App() {
   // NEW STATES: Data restored from history
   const [restoredNote, setRestoredNote] = useState(null);
   const [restoredReport, setRestoredReport] = useState(null);
+  
+  // NEW STATE: Server Status
+  const [serverStatus, setServerStatus] = useState('checking'); // 'checking', 'online', 'offline'
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
@@ -1308,6 +1296,24 @@ function App() {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     setIsDarkMode(prefersDark);
     if(prefersDark) document.body.classList.add('dark-mode');
+
+    // 🔄 AUTOMATIC WAKE-UP PING
+    const wakeUpServer = async () => {
+      try {
+        console.log("Pinging server to wake it up...");
+        const res = await fetch(`${API_BASE_URL}/`); // Hits the backend health check
+        if (res.ok) {
+          console.log("✅ Server is awake!");
+          setServerStatus('online');
+        } else {
+          setServerStatus('offline');
+        }
+      } catch (e) {
+        console.error("Server is likely sleeping or down:", e);
+        setServerStatus('offline');
+      }
+    };
+    wakeUpServer();
 
     return () => subscription.unsubscribe();
   }, []);
@@ -1352,7 +1358,14 @@ function App() {
             </button>
           ))}
         </div>
-        <div className="nav-right">
+        <div className="nav-right" style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+           {/* SERVER STATUS INDICATOR */}
+           <div style={{ fontSize: '0.8rem', fontWeight: '500' }}>
+              {serverStatus === 'checking' && <span style={{color: 'orange'}}>🟠 Waking...</span>}
+              {serverStatus === 'online' && <span style={{color: '#10b981'}}>🟢 Ready</span>}
+              {serverStatus === 'offline' && <span style={{color: '#ef4444'}}>🔴 Offline</span>}
+           </div>
+
            {user ? (
                <ProfileMenu 
                  user={user} 
