@@ -34,7 +34,7 @@ const ALL_KEYS = [
 let currentKeyIndex = 0;
 
 // Initialize Gemini with the first key
-let genAI = new GoogleGenerativeAI(GEMINI_API_KEYS[currentKeyIndex]);
+let genAI = new GoogleGenerativeAI(ALL_KEYS[currentKeyIndex]);
 let model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); 
 
 // Helper function to rotate keys
