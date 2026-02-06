@@ -24,14 +24,13 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // ⚠️ MULTI-API KEY SYSTEM
 // Add as many keys as you want here. The system will rotate through them if one fails.
-const GEMINI_API_KEYS = [
-    VITE_GEMINI_API_KEY, // Primary Key
-    VITE_GEMINI_API_KEY1,
-  VITE_GEMINI_API_KEY2,
-  VITE_GEMINI_API_KEY3,
-  VITE_GEMINI_API_KEY4
+const ALL_KEYS = [
+  import.meta.env.VITE_GEMINI_API_KEY,  // Primary
+  import.meta.env.VITE_GEMINI_API_KEY1,
+  import.meta.env.VITE_GEMINI_API_KEY2,
+  import.meta.env.VITE_GEMINI_API_KEY3,
+  import.meta.env.VITE_GEMINI_API_KEY4
 ];
-
 let currentKeyIndex = 0;
 
 // Initialize Gemini with the first key
