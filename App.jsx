@@ -16,7 +16,7 @@ import logo from './logo.png';
 // ==========================================
 
 // ✅ PRODUCTION BACKEND URL
-const API_BASE_URL = 'https://eduproback.onrender.com';
+const API_BASE_URL = 'https://eduproback1.onrender.com';
 
 const supabaseUrl = 'https://zlzdtzkprmgbixxggkrz.supabase.co';
 const supabaseKey = 'sb_publishable_tK1j5PaFwiZW5JyQkygNzw_nYxgwzqW';
